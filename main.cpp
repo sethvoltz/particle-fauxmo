@@ -189,6 +189,12 @@ void loop() {
   TCPClient client = server.available();
   if (client.connected()) {
     while (client.available()) {
+      // Now actually read this into a string, check for the path params for
+      // the config XML file and the control calls, then return the appropriate
+      // template or control what needs to be controlled.
+      // a) Call the turn on / off methods
+      // b) Set a cloud variable
+      // c) ... Profit?
       char c = client.read();
       server.write(c);
       Serial.print("message recieved:");
