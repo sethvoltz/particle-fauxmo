@@ -311,45 +311,48 @@ void sendMulticastNotify() {
 // --------------------------------------------------------------- HTTP Handlers
 void handleWebRequest() {
   TCPClient client = server.available();
-  if (client.connected()) {
-    int counter = 0;
-    char request_buffer[WEB_EXPECTED_REQUEST_SIZE + 1];
+  if (!client.connected()) return;
 
-    // Now actually read this into a string, check for the path params for
-    while (client.available() && counter < WEB_EXPECTED_REQUEST_SIZE) {
-      request_buffer[counter++] = client.read();
-    }
-    request_buffer[counter] = 0;
-    debug("Reading TCP data on HTTP control port");
+  int counter = 0;
+  std::stringstream buffer;
 
-    std::string request = std::string(request_buffer);
-    std::string response;
-    if (request.find(setup_request) != std::string::npos) {
-      debug("Sending XML setup document");
-      // the config XML file and the control calls, then return the appropriate
-      // template or control what needs to be controlled.
-      std::string xml = replace_all(setup_xml_template, "{{DEVICE_NAME}}", std::string(config.device_name));
-      xml = replace_all(xml, "{{SERIAL_NUMBER}}", device_serial);
-
-      response = replace_all(setup_header_template, "{{TIMESTAMP}}", getTimestamp());
-      response = replace_all(response, "{{CONTENT_LENGTH}}", TO_STRING(xml.length()));
-      response = replace_all(response, "{{XML_RESPONSE}}", xml);
-    } else if (request.find(control_request) != std::string::npos) {
-      if (request.find(turn_on_state) != std::string::npos) {
-        turnDeviceOn();
-      } else {
-        turnDeviceOff();
-      }
-      response = replace_all(control_response_template, "{{TIMESTAMP}}", getTimestamp());
-    } else {
-      debug("Sending 404 reponse for unknown request");
-      response = four_oh_four;
-    }
-
-    server.write((unsigned char*) response.c_str(), response.length());
-    client.flush();
-    client.stop();
+  // Now actually read this into a string, check for the path params for
+  debug("Reading TCP data on HTTP control port");
+  char this_char;
+  while (client.available() && counter < WEB_EXPECTED_REQUEST_SIZE) {
+    this_char = client.read();
+    buffer << this_char;
+    counter++;
   }
+
+  std::string request = buffer.str();
+  std::string response;
+
+  if (request.find(setup_request) != std::string::npos) {
+    debug("Sending XML setup document");
+    // the config XML file and the control calls, then return the appropriate
+    // template or control what needs to be controlled.
+    std::string xml = replace_all(setup_xml_template, "{{DEVICE_NAME}}", std::string(config.device_name));
+    xml = replace_all(xml, "{{SERIAL_NUMBER}}", device_serial);
+
+    response = replace_all(setup_header_template, "{{TIMESTAMP}}", getTimestamp());
+    response = replace_all(response, "{{CONTENT_LENGTH}}", TO_STRING(xml.length()));
+    response = replace_all(response, "{{XML_RESPONSE}}", xml);
+  } else if (request.find(control_request) != std::string::npos) {
+    if (request.find(turn_on_state) != std::string::npos) {
+      turnDeviceOn();
+    } else {
+      turnDeviceOff();
+    }
+    response = replace_all(control_response_template, "{{TIMESTAMP}}", getTimestamp());
+  } else {
+    debug("Sending 404 reponse for unknown request");
+    response = four_oh_four;
+  }
+
+  server.write((unsigned char*) response.c_str(), response.length());
+  client.flush();
+  client.stop();
 }
 
 
