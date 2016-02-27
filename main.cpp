@@ -6,17 +6,20 @@
 
 #include "application.h"
 
+#define ENABLE_DEBUG 1
 #define TO_STRING(x) static_cast< std::ostringstream & >(( std::ostringstream() << std::dec << x )).str()
 #define EXPECTED_PACKET_SIZE 99
 #define WEB_EXPECTED_REQUEST_SIZE 1024
 
-// Service Constants
+
+// ----------------------------------------------------------- Service Constants
 IPAddress upnp_address( 239, 255, 255, 250 );
 int upnp_port = 1900;
 int web_port = 49153;
 char device_name[64] = "living room light";
 
-// Templates
+
+// ------------------------------------------------------------------- Templates
 const std::string upnp_search = "M-SEARCH";
 const std::string wemo_search = "ST: urn:Belkin:device:**";
 const std::string wemo_reply_template =
@@ -68,8 +71,9 @@ const std::string control_response_template =
   "EXT:\r\n"
   "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
   "X-User-Agent: redsonic\r\n"
-  "\r\n";
-
+  "Content-length: 4"
+  "\r\n"
+  "OK\r\n";
 const std::string four_oh_four =
   "HTTP/1.1 404 Not Found\r\n"
   "Content-type: text/html\r\n"
@@ -82,12 +86,24 @@ const std::string four_oh_four =
 // Support Constants
 static char HEX_DIGITS[] = "0123456789abcdef";
 
+
+// ------------------------------------------------------------- Runtime Globals
 IPAddress ip_address;
 std::string device_uuid;
 std::string device_serial;
 
+// Socket Servers
 UDP udp;
 TCPServer server = TCPServer(web_port);
+
+
+// ------------------------------------------------------------ Helper Functions
+void debug(std::string message) {
+  if (ENABLE_DEBUG == 1) {
+    Serial.println(message.c_str());
+    Particle.publish("DEBUG", message.c_str());
+  }
+}
 
 std::string getTimestamp() {
   return std::string(Time.format(Time.now(), "%a, %d %b %Y %H:%M:%S %Z"));
@@ -110,102 +126,6 @@ std::string replace_all(
   }
   result.append(str, from, std::string::npos);
   return result;
-}
-
-bool isMulticastSearch() {
-  int byte_count = udp.parsePacket();
-
-  if ( byte_count > 0 ) {
-    // Read to buffer (defensively and stuff)
-    Serial.println("Reading data...");
-    char buffer[EXPECTED_PACKET_SIZE + 1];
-    int read_amount = (EXPECTED_PACKET_SIZE < byte_count)? byte_count : EXPECTED_PACKET_SIZE;
-    udp.read(buffer, read_amount);
-    buffer[read_amount] = 0;
-
-    // Cast to String
-    const std::string data(buffer);
-    Serial.println(data.c_str());
-
-    // Find the stuff we care about
-    if (data.find(upnp_search) != std::string::npos &&
-        data.find(wemo_search) != std::string::npos) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-void doHTTPCheck() {
-  TCPClient client = server.available();
-  if (client.connected()) {
-    int counter = 0;
-    char request_buffer[WEB_EXPECTED_REQUEST_SIZE + 1];
-
-    // Now actually read this into a string, check for the path params for
-    while (client.available() && counter < WEB_EXPECTED_REQUEST_SIZE) {
-      Serial.print(".");
-      request_buffer[counter++] = client.read();
-    }
-    Serial.println("--");
-    request_buffer[counter] = 0;
-    Serial.println("message recieved:");
-    Serial.println(request_buffer);
-
-    std::string request = std::string(request_buffer);
-    std::string response;
-    if (request.find(setup_request) != std::string::npos) {
-      Serial.println("Found setup request...");
-      // the config XML file and the control calls, then return the appropriate
-      // template or control what needs to be controlled.
-      std::string xml = replace_all(setup_xml_template, "{{DEVICE_NAME}}", std::string(device_name));
-      xml = replace_all(xml, "{{SERIAL_NUMBER}}", device_serial);
-
-      response = replace_all(setup_header_template, "{{TIMESTAMP}}", getTimestamp());
-      response = replace_all(response, "{{CONTENT_LENGTH}}", TO_STRING(xml.length()));
-      response = replace_all(response, "{{XML_RESPONSE}}", xml);
-    } else if (request.find(control_request) != std::string::npos) {
-      Serial.print("Found control request... ");
-      if (request.find(turn_on_state) != std::string::npos) {
-        Serial.println("turn on");
-        // a) Call the turn on method
-        // b) Set a cloud variable
-      } else {
-        Serial.println("turn off");
-        // a) Call the turn on method
-        // b) Set a cloud variable
-      }
-      response = replace_all(control_response_template, "{{TIMESTAMP}}", getTimestamp());
-    } else {
-      Serial.println("UNKNOWN REQUEST");
-      // Unknown request, send 404
-      response = four_oh_four;
-    }
-
-    Serial.println("Sending HTTP Response.");
-    server.write((unsigned char*) response.c_str(), response.length());
-    client.flush();
-    client.stop();
-  }
-}
-
-void sendSearchReply() {
-  Serial.println("Sending reply to successful search...");
-  udp.beginPacket(upnp_address, upnp_port);
-
-  char ip_string[24];
-  sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-
-  std::string wemo_reply;
-  wemo_reply = replace_all(wemo_reply_template, "{{TIMESTAMP}}", getTimestamp());
-  wemo_reply = replace_all(wemo_reply, "{{IP_ADDRESS}}", ip_string);
-  wemo_reply = replace_all(wemo_reply, "{{WEB_PORT}}", TO_STRING(web_port));
-  wemo_reply = replace_all(wemo_reply, "{{UUID}}", device_uuid);
-  wemo_reply = replace_all(wemo_reply, "{{SERIAL_NUMBER}}", device_serial);
-
-  udp.write(wemo_reply.c_str());
-  udp.endPacket();
 }
 
 void toUnsignedString(char dest[], int offset, int len, long i, int shift) {
@@ -248,6 +168,109 @@ std::string uuidToString(std::pair<uint64_t, uint64_t>uuid_pair) {
 //   return res.str();
 // }
 
+
+// ---------------------------------------------------- Device Control Functions
+void turnDeviceOn() {
+  debug("Turning controlled device ON");
+  // Set a cloud variable
+}
+
+void turnDeviceOff() {
+  debug("Turning controlled device OFF");
+  // Set a cloud variable
+}
+
+
+// --------------------------------------------------------------- UPnP Handlers
+void sendSearchReply() {
+  debug("Sending UPnP Reply to multicast group");
+  udp.beginPacket(upnp_address, upnp_port);
+
+  char ip_string[24];
+  sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+
+  std::string wemo_reply;
+  wemo_reply = replace_all(wemo_reply_template, "{{TIMESTAMP}}", getTimestamp());
+  wemo_reply = replace_all(wemo_reply, "{{IP_ADDRESS}}", ip_string);
+  wemo_reply = replace_all(wemo_reply, "{{WEB_PORT}}", TO_STRING(web_port));
+  wemo_reply = replace_all(wemo_reply, "{{UUID}}", device_uuid);
+  wemo_reply = replace_all(wemo_reply, "{{SERIAL_NUMBER}}", device_serial);
+
+  udp.write(wemo_reply.c_str());
+  udp.endPacket();
+}
+
+void handleMulticastRequest() {
+  int byte_count = udp.parsePacket();
+  bool send_reply = false;
+
+  if ( byte_count > 0 ) {
+    // Read to buffer (defensively and stuff)
+    debug("Reading UPnP data from multicast group");
+    char buffer[EXPECTED_PACKET_SIZE + 1];
+    int read_amount = (EXPECTED_PACKET_SIZE < byte_count)? byte_count : EXPECTED_PACKET_SIZE;
+    udp.read(buffer, read_amount);
+    buffer[read_amount] = 0;
+
+    // Find the stuff we care about
+    const std::string data(buffer);
+    if (data.find(upnp_search) != std::string::npos &&
+        data.find(wemo_search) != std::string::npos) {
+      send_reply = true;
+    }
+  }
+
+  udp.flush();
+  if (send_reply) sendSearchReply();
+}
+
+
+// --------------------------------------------------------------- HTTP Handlers
+void handleWebRequest() {
+  TCPClient client = server.available();
+  if (client.connected()) {
+    int counter = 0;
+    char request_buffer[WEB_EXPECTED_REQUEST_SIZE + 1];
+
+    // Now actually read this into a string, check for the path params for
+    while (client.available() && counter < WEB_EXPECTED_REQUEST_SIZE) {
+      request_buffer[counter++] = client.read();
+    }
+    request_buffer[counter] = 0;
+    debug("Reading TCP data on HTTP control port");
+
+    std::string request = std::string(request_buffer);
+    std::string response;
+    if (request.find(setup_request) != std::string::npos) {
+      debug("Sending XML setup document");
+      // the config XML file and the control calls, then return the appropriate
+      // template or control what needs to be controlled.
+      std::string xml = replace_all(setup_xml_template, "{{DEVICE_NAME}}", std::string(device_name));
+      xml = replace_all(xml, "{{SERIAL_NUMBER}}", device_serial);
+
+      response = replace_all(setup_header_template, "{{TIMESTAMP}}", getTimestamp());
+      response = replace_all(response, "{{CONTENT_LENGTH}}", TO_STRING(xml.length()));
+      response = replace_all(response, "{{XML_RESPONSE}}", xml);
+    } else if (request.find(control_request) != std::string::npos) {
+      if (request.find(turn_on_state) != std::string::npos) {
+        turnDeviceOn();
+      } else {
+        turnDeviceOff();
+      }
+      response = replace_all(control_response_template, "{{TIMESTAMP}}", getTimestamp());
+    } else {
+      debug("Sending 404 reponse for unknown request");
+      response = four_oh_four;
+    }
+
+    server.write((unsigned char*) response.c_str(), response.length());
+    client.flush();
+    client.stop();
+  }
+}
+
+
+// ------------------------------------------------------------- Setup Functions
 std::string getDeviceSerial() {
   byte mac[6];
   WiFi.macAddress(mac);
@@ -274,11 +297,15 @@ void setup() {
   device_uuid = getDeviceUUID();
   device_serial = getDeviceSerial();
 
+  // Wait for wireless to come online
   waitUntil(WiFi.ready);
-  Serial.print("Local IP: ");
   ip_address = WiFi.localIP();
-  Serial.println(ip_address);
-  Serial.println("Setting up UDP");
+
+  std::stringstream ss;
+  char ip_string[24];
+  sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+  ss << "Local IP: " << ip_string;
+  debug(ss.str());
 
   // Start UDP
   udp.begin(upnp_port);
@@ -288,10 +315,9 @@ void setup() {
   server.begin();
 }
 
-void loop() {
-  bool send_reply = isMulticastSearch();
-  udp.flush();
-  if (send_reply) sendSearchReply();
 
-  doHTTPCheck();
+// ------------------------------------------------------------- Main Event Loop
+void loop() {
+  handleMulticastRequest();
+  handleWebRequest();
 }
