@@ -23,3 +23,13 @@ SERVER: windows/6.1 IntelUSBoverIP:1/1
 USN: uuid:4E50646A-B607-4ECB-9676-8DC10ABE8A5F::IntelUSBoverIP:1
 
 ---
+POST /upnp/control/basicevent1 HTTP/1.1
+Host: 192.168.5.189:49153
+Accept: */*
+Content-type: text/xml; charset="utf-8"
+SOAPACTION: "urn:Belkin:service:basicevent:1#SetBinaryState"
+Content-Length: 299
+
+<?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:SetBinaryState xmlns:u="urn:Belkin:service:basicevent:1"><BinaryState>1</BinaryState></u:SetBinaryState></s:Body></s:Envelope>
+
+---
