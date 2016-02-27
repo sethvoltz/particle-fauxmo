@@ -8,7 +8,6 @@
 
 #define ENABLE_DEBUG 1
 #define TO_STRING(x) static_cast< std::ostringstream & >(( std::ostringstream() << std::dec << x )).str()
-#define EXPECTED_PACKET_SIZE 99
 #define WEB_EXPECTED_REQUEST_SIZE 1024
 
 // Config defaults and sizes
@@ -258,17 +257,31 @@ void sendSearchReply() {
 void handleMulticastRequest() {
   int byte_count = udp.parsePacket();
   bool send_reply = false;
+  std::stringstream buffer;
 
   if ( byte_count > 0 ) {
-    // Read to buffer (defensively and stuff)
     debug("Reading UPnP data from multicast group");
-    char buffer[EXPECTED_PACKET_SIZE + 1];
-    int read_amount = (EXPECTED_PACKET_SIZE < byte_count)? byte_count : EXPECTED_PACKET_SIZE;
-    udp.read(buffer, read_amount);
-    buffer[read_amount] = 0;
+
+    char this_char;
+    int newline_count = 0;
+    int counter = 0;
+    while (newline_count < 2 && counter < byte_count) {
+      this_char = udp.read();
+      Serial.print(this_char);
+      buffer << this_char;
+
+      if (this_char == '\r') continue;
+
+      if (this_char == '\n') {
+        newline_count++;
+      } else {
+        newline_count = 0;
+      }
+      counter++;
+    }
 
     // Find the stuff we care about
-    const std::string data(buffer);
+    const std::string data = buffer.str();
     if (data.find(upnp_search) != std::string::npos &&
         data.find(wemo_search) != std::string::npos) {
       send_reply = true;

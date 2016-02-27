@@ -1,18 +1,18 @@
----
+--- simple request ---
 M-SEARCH * HTTP/1.1
 HOST: 239.255.255.250:1900
 MAN: "ssdp:discover"
 MX: 15
 ST: urn:Belkin:device:**
 
----
+--- non-wemo request ---
 M-SEARCH * HTTP/1.1
 Host:239.255.255.250:1900
 ST:urn:schemas-upnp-org:device:InternetGatewayDevice:1
 Man:"ssdp:discover"
 MX:3
 
----
+--- reply on network ---
 NOTIFY * HTTP/1.1
 Host: 239.255.255.250:1900
 Cache-Control: max-age=4
@@ -22,7 +22,7 @@ NTS: ssdp:alive
 SERVER: windows/6.1 IntelUSBoverIP:1/1
 USN: uuid:4E50646A-B607-4ECB-9676-8DC10ABE8A5F::IntelUSBoverIP:1
 
----
+--- simple control ---
 POST /upnp/control/basicevent1 HTTP/1.1
 Host: 192.168.5.189:49153
 Accept: */*
@@ -31,5 +31,30 @@ SOAPACTION: "urn:Belkin:service:basicevent:1#SetBinaryState"
 Content-Length: 299
 
 <?xml version="1.0" encoding="utf-8"?><s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:SetBinaryState xmlns:u="urn:Belkin:service:basicevent:1"><BinaryState>1</BinaryState></u:SetBinaryState></s:Body></s:Envelope>
+
+--- actual Echo request ---
+M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 15
+ST: urn:Belkin:device:**
+
+M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 15
+ST: urn:Belkin:device:**
+
+M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 15
+ST: urn:schemas-upnp-org:device:basic:1
+
+M-SEARCH * HTTP/1.1
+HOST: 239.255.255.250:1900
+MAN: "ssdp:discover"
+MX: 15
+ST: urn:schemas-upnp-org:device:basic:1
 
 ---
