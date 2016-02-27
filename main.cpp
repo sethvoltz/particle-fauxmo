@@ -38,6 +38,16 @@ const std::string wemo_reply_template =
   "ST: urn:Belkin:device:**\r\n"
   "USN: uuid:Socket-1_0-{{SERIAL_NUMBER}}::urn:Belkin:device:**\r\n"
   "\r\n";
+const std::string wemo_notify_template =
+  "NOTIFY * HTTP/1.1\r\n"
+  "HOST: 239.255.255.250:1900\r\n"
+  "CACHE-CONTROL: max-age = 1800\r\n"
+  "LOCATION: http://{{IP_ADDRESS}}:{{WEB_PORT}}/setup.xml\r\n"
+  "NT: upnp:rootdevice\r\n"
+  "NTS: ssdp:alive\r\n"
+  "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
+  "USN: uuid:Socket-1_0-{{SERIAL_NUMBER}}::urn:Belkin:device:**\r\n"
+  "\r\n";
 
 const std::string setup_request = "GET /setup.xml HTTP/1.1";
 const std::string control_request = "SOAPACTION: \"urn:Belkin:service:basicevent:1#SetBinaryState\"";
@@ -269,6 +279,21 @@ void handleMulticastRequest() {
   if (send_reply) sendSearchReply();
 }
 
+void sendMulticastNotify() {
+  debug("Sending UPnP Notify to multicast group");
+  udp.beginPacket(upnp_address, upnp_port);
+
+  char ip_string[24];
+  sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
+
+  std::string wemo_notify;
+  wemo_notify = replace_all(wemo_notify_template, "{{IP_ADDRESS}}", ip_string);
+  wemo_notify = replace_all(wemo_notify, "{{WEB_PORT}}", TO_STRING(web_port));
+  wemo_notify = replace_all(wemo_notify, "{{SERIAL_NUMBER}}", device_serial);
+
+  udp.write(wemo_notify.c_str());
+  udp.endPacket();
+}
 
 // --------------------------------------------------------------- HTTP Handlers
 void handleWebRequest() {
@@ -343,6 +368,9 @@ void setup() {
   Particle.variable("deviceName", config.device_name, STRING);
   Particle.function("deviceName", call_setDeviceName);
 
+  //load config
+  loadConfig();
+
   // Generate device values
   device_uuid = getDeviceUUID();
   device_serial = getDeviceSerial();
@@ -354,7 +382,7 @@ void setup() {
   std::stringstream ss;
   char ip_string[24];
   sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-  ss << "Local IP: " << ip_string;
+  ss << "Local IP: " << ip_string << ", Device Name: " << config.device_name;
   debug(ss.str());
 
   // Start UDP
@@ -363,6 +391,11 @@ void setup() {
 
   // Start TCP
   server.begin();
+
+  if (strcmp(config.device_name, DEVICE_NAME) != 0) {
+    // Device name is not default. Announce self to the network
+    sendMulticastNotify();
+  }
 }
 
 
