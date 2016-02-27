@@ -11,12 +11,15 @@
 #define EXPECTED_PACKET_SIZE 99
 #define WEB_EXPECTED_REQUEST_SIZE 1024
 
+// Config defaults and sizes
+#define DEVICE_NAME "unknown device"
+#define DEVICE_NAME_SIZE 64
+
 
 // ----------------------------------------------------------- Service Constants
 IPAddress upnp_address( 239, 255, 255, 250 );
 int upnp_port = 1900;
 int web_port = 49153;
-char device_name[64] = "living room light";
 
 
 // ------------------------------------------------------------------- Templates
@@ -91,10 +94,50 @@ static char HEX_DIGITS[] = "0123456789abcdef";
 IPAddress ip_address;
 std::string device_uuid;
 std::string device_serial;
+int device_state = 0;
 
 // Socket Servers
 UDP udp;
 TCPServer server = TCPServer(web_port);
+
+// -------------------------------------------------------------- EEPROM Storage
+#define CONFIG_VERSION "st1"
+#define CONFIG_START 0
+
+// storage data
+struct ConfigStruct {
+    char version[4];
+    char device_name[DEVICE_NAME_SIZE];
+} config = {
+    CONFIG_VERSION,
+    DEVICE_NAME
+};
+
+// Load configuration
+void loadConfig() {
+  if (EEPROM.read(CONFIG_START + 0) == CONFIG_VERSION[0] &&
+      EEPROM.read(CONFIG_START + 1) == CONFIG_VERSION[1] &&
+      EEPROM.read(CONFIG_START + 2) == CONFIG_VERSION[2]) {
+    for (unsigned int t = 0; t < sizeof(config); t++) {
+      *((char*)&config + t) = EEPROM.read(CONFIG_START + t);
+    }
+  }
+}
+
+// Save configuration
+void saveConfig() {
+  for (unsigned int t = 0; t < sizeof(config); t++)
+    EEPROM.write(CONFIG_START + t, *((char*)&config + t));
+}
+
+// ---------------------------------------------------- Particle Cloud Functions
+int call_setDeviceName(String name) {
+    //update new value to eeprom
+    name.toCharArray(config.device_name, DEVICE_NAME_SIZE);
+    saveConfig();
+
+    return 1;
+}
 
 
 // ------------------------------------------------------------ Helper Functions
@@ -172,12 +215,14 @@ std::string uuidToString(std::pair<uint64_t, uint64_t>uuid_pair) {
 // ---------------------------------------------------- Device Control Functions
 void turnDeviceOn() {
   debug("Turning controlled device ON");
-  // Set a cloud variable
+  // turn the device on
+  device_state = 1;
 }
 
 void turnDeviceOff() {
   debug("Turning controlled device OFF");
-  // Set a cloud variable
+  // turn the device off
+  device_state = 0;
 }
 
 
@@ -245,7 +290,7 @@ void handleWebRequest() {
       debug("Sending XML setup document");
       // the config XML file and the control calls, then return the appropriate
       // template or control what needs to be controlled.
-      std::string xml = replace_all(setup_xml_template, "{{DEVICE_NAME}}", std::string(device_name));
+      std::string xml = replace_all(setup_xml_template, "{{DEVICE_NAME}}", std::string(config.device_name));
       xml = replace_all(xml, "{{SERIAL_NUMBER}}", device_serial);
 
       response = replace_all(setup_header_template, "{{TIMESTAMP}}", getTimestamp());
@@ -292,6 +337,11 @@ std::string getDeviceUUID() {
 void setup() {
   Serial.begin(9600); // open serial over USB
   Serial.println("Starting up...");
+
+  // Setup Particle Cloud
+  Particle.variable("deviceState", device_state);
+  Particle.variable("deviceName", config.device_name, STRING);
+  Particle.function("deviceName", call_setDeviceName);
 
   // Generate device values
   device_uuid = getDeviceUUID();
