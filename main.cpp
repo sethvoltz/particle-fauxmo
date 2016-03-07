@@ -20,6 +20,10 @@ IPAddress upnp_address( 239, 255, 255, 250 );
 int upnp_port = 1900;
 int web_port = 49153;
 
+// Device control
+const int status_led = D7;
+const int device_out = D0;
+
 
 // ------------------------------------------------------------------- Templates
 const std::string upnp_search = "M-SEARCH";
@@ -224,13 +228,15 @@ std::string uuidToString(std::pair<uint64_t, uint64_t>uuid_pair) {
 // ---------------------------------------------------- Device Control Functions
 void turnDeviceOn() {
   debug("Turning controlled device ON");
-  // turn the device on
+  digitalWrite(status_led, HIGH);
+  digitalWrite(device_out, HIGH);
   device_state = 1;
 }
 
 void turnDeviceOff() {
   debug("Turning controlled device OFF");
-  // turn the device off
+  digitalWrite(status_led, LOW);
+  digitalWrite(device_out, LOW);
   device_state = 0;
 }
 
@@ -238,6 +244,7 @@ void turnDeviceOff() {
 // --------------------------------------------------------------- UPnP Handlers
 void sendSearchReply() {
   debug("Sending UPnP Reply to multicast group");
+  // Thanks to https://github.com/smpickett/particle_ssdp_server
   udp.beginPacket(udp.remoteIP(), udp.remotePort());
 
   char ip_string[24];
@@ -386,6 +393,9 @@ void setup() {
 
   //load config
   loadConfig();
+
+  pinMode(status_led, OUTPUT);
+  pinMode(device_out, OUTPUT);
 
   // Generate device values
   device_uuid = getDeviceUUID();
