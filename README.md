@@ -37,3 +37,13 @@ I prefer to use multiple terminals so I can watch the serial output of the devic
   SOAPACTION:'"urn:Belkin:service:basicevent:1#SetBinaryState"' \
   body="<BinaryState>1</BinaryState>"
   ```
+
+
+Many Thanks
+===========
+
+These blog posts and other resources were mighty helpful in getting this working. Many thanks for the time and effort it took for these fine folks to share their work with the world!
+
+- http://www.makermusings.com/2015/07/13/amazon-echo-and-home-automation
+- https://objectpartners.com/2014/03/25/a-groovy-time-with-upnp-and-wemo
+- https://github.com/smpickett/particle_ssdp_server
