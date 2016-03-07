@@ -12,7 +12,9 @@
 
 // Config defaults and sizes
 #define DEVICE_NAME "unknown device"
-#define DEVICE_NAME_SIZE 64
+#define DEVICE_NAME_SIZE 65
+#define DEVICE_UUID 0
+#define DEVICE_UUID_SIZE 37
 
 
 // ----------------------------------------------------------- Service Constants
@@ -121,9 +123,11 @@ TCPServer server = TCPServer(web_port);
 struct ConfigStruct {
     char version[4];
     char device_name[DEVICE_NAME_SIZE];
+    char device_uuid[DEVICE_UUID_SIZE];
 } config = {
     CONFIG_VERSION,
-    DEVICE_NAME
+    DEVICE_NAME,
+    DEVICE_UUID
 };
 
 // Load configuration
@@ -142,16 +146,6 @@ void saveConfig() {
   for (unsigned int t = 0; t < sizeof(config); t++)
     EEPROM.write(CONFIG_START + t, *((char*)&config + t));
 }
-
-// ---------------------------------------------------- Particle Cloud Functions
-int call_setDeviceName(String name) {
-    //update new value to eeprom
-    name.toCharArray(config.device_name, DEVICE_NAME_SIZE);
-    saveConfig();
-
-    return 1;
-}
-
 
 // ------------------------------------------------------------ Helper Functions
 void debug(std::string message) {
@@ -363,7 +357,7 @@ void handleWebRequest() {
 }
 
 
-// ------------------------------------------------------------- Setup Functions
+// ------------------------------------------------------------ Device Functions
 std::string getDeviceSerial() {
   byte mac[6];
   WiFi.macAddress(mac);
@@ -374,14 +368,46 @@ std::string getDeviceSerial() {
 }
 
 std::string getDeviceUUID() {
-  byte mac[6];
-  WiFi.macAddress(mac);
-  uint64_t host = 0;
-  for (int i = 0; i < 5; ++i) host += ((uint64_t) mac[i + 1] << (i * 8));
-  uuid::Uuid uuid = uuid::uuid1(host, (uint16_t) mac[0]);
-  return uuidToString(uuid.integer());
+  // if (strcmp(config.device_uuid, DEVICE_UUID) != 0) {
+  if (config.device_uuid[0] >= '0' && config.device_uuid[0] <= 'f') {
+    // Already have the UUID saved
+    return std::string(config.device_uuid);
+  } else {
+    // No UUID saved, generate and save it
+    byte mac[6];
+    WiFi.macAddress(mac);
+    uint64_t host = 0;
+    for (int i = 0; i < 5; ++i) host += ((uint64_t) mac[i + 1] << (i * 8));
+    uuid::Uuid uuid = uuid::uuid1(host, (uint16_t) mac[0]);
+    std::string uuid_string = uuidToString(uuid.integer());
+
+    // uuid_string.toCharArray(config.device_uuid, DEVICE_UUID_SIZE);
+    strncpy(config.device_uuid, uuid_string.c_str(), DEVICE_UUID_SIZE);
+    saveConfig();
+
+    return uuid_string;
+  }
 }
 
+// ---------------------------------------------------- Particle Cloud Functions
+int call_setDeviceName(String name) {
+    //update new value to eeprom
+    name.toCharArray(config.device_name, DEVICE_NAME_SIZE);
+    saveConfig();
+
+    config.device_uuid[0] = 0;
+    device_uuid = getDeviceUUID();
+
+    std::stringstream ss;
+    ss << "Update Name: '" << config.device_name << "'";
+    ss << ", UUID: " << config.device_uuid;
+    debug(ss.str());
+
+    return 1;
+}
+
+
+// ------------------------------------------------------------- Setup Functions
 void setup() {
   Serial.begin(9600); // open serial over USB
   Serial.println("Starting up...");
@@ -408,7 +434,9 @@ void setup() {
   std::stringstream ss;
   char ip_string[24];
   sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
-  ss << "Local IP: " << ip_string << ", Device Name: " << config.device_name;
+  ss << "Local IP: " << ip_string;
+  ss << ", Name: '" << config.device_name << "'";
+  ss << ", UUID: " << config.device_uuid;
   debug(ss.str());
 
   // Start UDP
