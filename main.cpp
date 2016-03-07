@@ -33,9 +33,9 @@ const std::string wemo_reply_template =
   "OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n"
   "01-NLS: {{UUID}}\r\n"
   "SERVER: Unspecified, UPnP/1.0, Unspecified\r\n"
-  "X-User-Agent: redsonic\r\n"
   "ST: urn:Belkin:device:**\r\n"
   "USN: uuid:Socket-1_0-{{SERIAL_NUMBER}}::urn:Belkin:device:**\r\n"
+  "X-User-Agent: redsonic\r\n"
   "\r\n";
 const std::string wemo_notify_template =
   "NOTIFY * HTTP/1.1\r\n"
@@ -238,7 +238,7 @@ void turnDeviceOff() {
 // --------------------------------------------------------------- UPnP Handlers
 void sendSearchReply() {
   debug("Sending UPnP Reply to multicast group");
-  udp.beginPacket(upnp_address, upnp_port);
+  udp.beginPacket(udp.remoteIP(), udp.remotePort());
 
   char ip_string[24];
   sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
@@ -267,7 +267,7 @@ void handleMulticastRequest() {
     int counter = 0;
     while (newline_count < 2 && counter < byte_count) {
       this_char = udp.read();
-      Serial.print(this_char);
+      // Serial.print(this_char);
       buffer << this_char;
 
       if (this_char == '\r') continue;
@@ -410,7 +410,7 @@ void setup() {
 
   if (strcmp(config.device_name, DEVICE_NAME) != 0) {
     // Device name is not default. Announce self to the network
-    sendMulticastNotify();
+    // sendMulticastNotify();
   }
 }
 
