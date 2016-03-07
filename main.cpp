@@ -406,6 +406,20 @@ int call_setDeviceName(String name) {
     return 1;
 }
 
+int call_setDeviceState(String state) {
+  if (state == "on") {
+    turnDeviceOn();
+  } else if (state == "off") {
+    turnDeviceOff();
+  } else {
+    std::stringstream ss;
+    ss << "Unknown device state command: " << state;
+    debug(ss.str());
+    return -1;
+  }
+  return 1;
+}
+
 
 // ------------------------------------------------------------- Setup Functions
 void setup() {
@@ -414,6 +428,7 @@ void setup() {
 
   // Setup Particle Cloud
   Particle.variable("deviceState", device_state);
+  Particle.function("deviceState", call_setDeviceState);
   Particle.variable("deviceName", config.device_name, STRING);
   Particle.function("deviceName", call_setDeviceName);
 
