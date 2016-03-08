@@ -9,6 +9,8 @@
 #define ENABLE_DEBUG 1
 #define TO_STRING(x) static_cast< std::ostringstream & >(( std::ostringstream() << std::dec << x )).str()
 #define WEB_EXPECTED_REQUEST_SIZE 1024
+#define ON_TIME_UPDATE_INTERVAL_SEC 120
+#define ON_TIMESTAMP_STALE_SEC 60 * 60
 
 // Config defaults and sizes
 #define DEVICE_NAME "unknown device"
@@ -147,6 +149,36 @@ void saveConfig() {
     EEPROM.write(CONFIG_START + t, *((char*)&config + t));
 }
 
+// Manage the last time the device was on
+void writeOnTimestamp(uint32_t timestamp) {
+  // max eeprom address = 2047, use top addr 2044-2047
+  EEPROM.put(2044, timestamp);
+}
+
+void updateOnTimestamp() {
+  writeOnTimestamp((uint32_t) Time.now());
+}
+
+void resetOnTimestamp() {
+  writeOnTimestamp(0);
+}
+
+uint32_t getOnTimestamp() {
+  uint32_t timestamp = 0;
+  EEPROM.get(2044, timestamp);
+  return timestamp;
+}
+
+bool isOnTimestampRecent() {
+  // If the timestamp is more than an hour out of date, fail
+  if ((uint32_t) Time.now() - getOnTimestamp() > ON_TIMESTAMP_STALE_SEC) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+
 // ------------------------------------------------------------ Helper Functions
 void debug(std::string message) {
   if (ENABLE_DEBUG == 1) {
@@ -225,6 +257,7 @@ void turnDeviceOn() {
   digitalWrite(status_led, HIGH);
   digitalWrite(device_out, HIGH);
   device_state = 1;
+  updateOnTimestamp();
 }
 
 void turnDeviceOff() {
@@ -232,6 +265,7 @@ void turnDeviceOff() {
   digitalWrite(status_led, LOW);
   digitalWrite(device_out, LOW);
   device_state = 0;
+  resetOnTimestamp();
 }
 
 
@@ -465,11 +499,25 @@ void setup() {
     // Device name is not default. Announce self to the network
     // sendMulticastNotify();
   }
+
+  // Check if device was recently on before losing power
+  if (isOnTimestampRecent()) {
+    turnDeviceOn();
+  }
 }
 
 
 // ------------------------------------------------------------- Main Event Loop
 void loop() {
+  static unsigned long onTimeUpdateTimer = millis();
+
   handleMulticastRequest();
   handleWebRequest();
+
+  if (millis() - onTimeUpdateTimer > 1000 * ON_TIME_UPDATE_INTERVAL_SEC) {
+    if (device_state == 1) {
+      updateOnTimestamp();
+    }
+    onTimeUpdateTimer = millis();
+  }
 }
