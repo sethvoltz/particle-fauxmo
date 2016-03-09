@@ -9,9 +9,15 @@
 #define ENABLE_DEBUG 1
 #define TO_STRING(x) static_cast< std::ostringstream & >(( std::ostringstream() << std::dec << x )).str()
 #define WEB_EXPECTED_REQUEST_SIZE 1024
+
+// Track last "on" time
 #define ON_TIME_MEMORY_ADDRESS 2044
 #define ON_TIME_UPDATE_INTERVAL_SEC 60 * 5
 #define ON_TIMESTAMP_STALE_SEC 60 * 30
+
+// Send notify updates
+#define CACHE_INTERVAL 60 * 60 * 24
+#define NOTIFY_UPDATE_INTERVAL_SEC CACHE_INTERVAL / 2
 
 // Config defaults and sizes
 #define DEVICE_NAME "unknown device"
@@ -24,6 +30,7 @@
 IPAddress upnp_address( 239, 255, 255, 250 );
 int upnp_port = 1900;
 int web_port = 49153;
+int cache_interval = CACHE_INTERVAL;
 
 // Device control
 const int status_led = D7;
@@ -35,7 +42,7 @@ const std::string upnp_search = "M-SEARCH";
 const std::string wemo_search = "ST: urn:Belkin:device:**";
 const std::string wemo_reply_template =
   "HTTP/1.1 200 OK\r\n"
-  "CACHE-CONTROL: max-age=86400\r\n"
+  "CACHE-CONTROL: max-age={{CACHE_INTERVAL}}\r\n"
   "DATE: {{TIMESTAMP}}\r\n"
   "EXT:\r\n"
   "LOCATION: http://{{IP_ADDRESS}}:{{WEB_PORT}}/setup.xml\r\n"
@@ -49,7 +56,7 @@ const std::string wemo_reply_template =
 const std::string wemo_notify_template =
   "NOTIFY * HTTP/1.1\r\n"
   "HOST: 239.255.255.250:1900\r\n"
-  "CACHE-CONTROL: max-age = 1800\r\n"
+  "CACHE-CONTROL: max-age={{CACHE_INTERVAL}}\r\n"
   "LOCATION: http://{{IP_ADDRESS}}:{{WEB_PORT}}/setup.xml\r\n"
   "NT: upnp:rootdevice\r\n"
   "NTS: ssdp:alive\r\n"
@@ -280,7 +287,8 @@ void sendSearchReply() {
   sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
 
   std::string wemo_reply;
-  wemo_reply = replace_all(wemo_reply_template, "{{TIMESTAMP}}", getTimestamp());
+  wemo_reply = replace_all(wemo_reply_template, "{{CACHE_INTERVAL}}", TO_STRING(cache_interval));
+  wemo_reply = replace_all(wemo_reply, "{{TIMESTAMP}}", getTimestamp());
   wemo_reply = replace_all(wemo_reply, "{{IP_ADDRESS}}", ip_string);
   wemo_reply = replace_all(wemo_reply, "{{WEB_PORT}}", TO_STRING(web_port));
   wemo_reply = replace_all(wemo_reply, "{{UUID}}", device_uuid);
@@ -329,6 +337,8 @@ void handleMulticastRequest() {
 }
 
 void sendMulticastNotify() {
+  if (strcmp(config.device_name, DEVICE_NAME) == 0) return;
+
   debug("Sending UPnP Notify to multicast group");
   udp.beginPacket(upnp_address, upnp_port);
 
@@ -336,7 +346,8 @@ void sendMulticastNotify() {
   sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
 
   std::string wemo_notify;
-  wemo_notify = replace_all(wemo_notify_template, "{{IP_ADDRESS}}", ip_string);
+  wemo_notify = replace_all(wemo_notify_template, "{{CACHE_INTERVAL}}", TO_STRING(cache_interval));
+  wemo_notify = replace_all(wemo_notify, "{{IP_ADDRESS}}", ip_string);
   wemo_notify = replace_all(wemo_notify, "{{WEB_PORT}}", TO_STRING(web_port));
   wemo_notify = replace_all(wemo_notify, "{{SERIAL_NUMBER}}", device_serial);
 
@@ -496,10 +507,8 @@ void setup() {
   // Start TCP
   server.begin();
 
-  if (strcmp(config.device_name, DEVICE_NAME) != 0) {
-    // Device name is not default. Announce self to the network
-    // sendMulticastNotify();
-  }
+  // Let the network know we're here
+  sendMulticastNotify();
 
   // Check if device was recently on before losing power
   if (isOnTimestampRecent()) {
@@ -511,6 +520,7 @@ void setup() {
 // ------------------------------------------------------------- Main Event Loop
 void loop() {
   static unsigned long onTimeUpdateTimer = millis();
+  static unsigned long notifyUpdateTimer = millis();
 
   handleMulticastRequest();
   handleWebRequest();
@@ -520,5 +530,10 @@ void loop() {
       updateOnTimestamp();
     }
     onTimeUpdateTimer = millis();
+  }
+
+  if (millis() - notifyUpdateTimer > 1000 * NOTIFY_UPDATE_INTERVAL_SEC) {
+    sendMulticastNotify();
+    notifyUpdateTimer = millis();
   }
 }
