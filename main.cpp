@@ -9,8 +9,9 @@
 #define ENABLE_DEBUG 1
 #define TO_STRING(x) static_cast< std::ostringstream & >(( std::ostringstream() << std::dec << x )).str()
 #define WEB_EXPECTED_REQUEST_SIZE 1024
-#define ON_TIME_UPDATE_INTERVAL_SEC 120
-#define ON_TIMESTAMP_STALE_SEC 60 * 60
+#define ON_TIME_MEMORY_ADDRESS 2044
+#define ON_TIME_UPDATE_INTERVAL_SEC 60 * 5
+#define ON_TIMESTAMP_STALE_SEC 60 * 30
 
 // Config defaults and sizes
 #define DEVICE_NAME "unknown device"
@@ -149,10 +150,10 @@ void saveConfig() {
     EEPROM.write(CONFIG_START + t, *((char*)&config + t));
 }
 
+// ------------------------------------------------------------ EEPROM Timestamp
 // Manage the last time the device was on
 void writeOnTimestamp(uint32_t timestamp) {
-  // max eeprom address = 2047, use top addr 2044-2047
-  EEPROM.put(2044, timestamp);
+  EEPROM.put(ON_TIME_MEMORY_ADDRESS, timestamp);
 }
 
 void updateOnTimestamp() {
@@ -165,7 +166,7 @@ void resetOnTimestamp() {
 
 uint32_t getOnTimestamp() {
   uint32_t timestamp = 0;
-  EEPROM.get(2044, timestamp);
+  EEPROM.get(ON_TIME_MEMORY_ADDRESS, timestamp);
   return timestamp;
 }
 
