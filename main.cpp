@@ -207,7 +207,7 @@ std::string getTimestamp() {
 }
 
 // Kudos: http://stackoverflow.com/a/27658515
-std::string replace_all(
+std::string replaceAll(
   const std::string& str,
   const std::string& find,
   const std::string& replace
@@ -226,13 +226,13 @@ std::string replace_all(
 }
 
 void toUnsignedString(char dest[], int offset, int len, long i, int shift) {
-  int charPos = len;
+  int char_pos = len;
   int radix = 1 << shift;
   long mask = radix - 1;
   do {
-    dest[offset + --charPos] = HEX_DIGITS[(int) (i & mask)];
+    dest[offset + --char_pos] = HEX_DIGITS[(int) (i & mask)];
     i = i >> shift;
-  } while (i != 0 && charPos > 0);
+  } while (i != 0 && char_pos > 0);
 }
 
 void hexDigits(char dest[], int offset, int digits, long val) {
@@ -241,7 +241,7 @@ void hexDigits(char dest[], int offset, int digits, long val) {
 }
 
 std::string uuidToString(std::pair<uint64_t, uint64_t>uuid_pair) {
-  char uuid_string[37];
+  char uuid_string[37] = {};
 
   hexDigits(uuid_string, 0, 8, uuid_pair.first >> 32);
   uuid_string[8] = 45;
@@ -258,12 +258,6 @@ std::string uuidToString(std::pair<uint64_t, uint64_t>uuid_pair) {
   uuid_string[36] = 0;
   return std::string(uuid_string);
 }
-
-// std::string join(const std::vector<std::string>& vec, const char* delim) {
-//   std::stringstream res;
-//   copy(vec.begin(), vec.end(), std::ostream_iterator<std::string>(res, delim));
-//   return res.str();
-// }
 
 
 // ---------------------------------------------------- Device Control Functions
@@ -294,12 +288,12 @@ void sendSearchReply() {
   sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
 
   std::string wemo_reply;
-  wemo_reply = replace_all(wemo_reply_template, "{{CACHE_INTERVAL}}", TO_STRING(cache_interval));
-  wemo_reply = replace_all(wemo_reply, "{{TIMESTAMP}}", getTimestamp());
-  wemo_reply = replace_all(wemo_reply, "{{IP_ADDRESS}}", ip_string);
-  wemo_reply = replace_all(wemo_reply, "{{WEB_PORT}}", TO_STRING(web_port));
-  wemo_reply = replace_all(wemo_reply, "{{UUID}}", device_uuid);
-  wemo_reply = replace_all(wemo_reply, "{{SERIAL_NUMBER}}", device_serial);
+  wemo_reply = replaceAll(wemo_reply_template, "{{CACHE_INTERVAL}}", TO_STRING(cache_interval));
+  wemo_reply = replaceAll(wemo_reply, "{{TIMESTAMP}}", getTimestamp());
+  wemo_reply = replaceAll(wemo_reply, "{{IP_ADDRESS}}", ip_string);
+  wemo_reply = replaceAll(wemo_reply, "{{WEB_PORT}}", TO_STRING(web_port));
+  wemo_reply = replaceAll(wemo_reply, "{{UUID}}", device_uuid);
+  wemo_reply = replaceAll(wemo_reply, "{{SERIAL_NUMBER}}", device_serial);
 
   udp.write(wemo_reply.c_str());
   udp.endPacket();
@@ -353,10 +347,10 @@ void sendMulticastNotify() {
   sprintf(ip_string, "%d.%d.%d.%d", ip_address[0], ip_address[1], ip_address[2], ip_address[3]);
 
   std::string wemo_notify;
-  wemo_notify = replace_all(wemo_notify_template, "{{CACHE_INTERVAL}}", TO_STRING(cache_interval));
-  wemo_notify = replace_all(wemo_notify, "{{IP_ADDRESS}}", ip_string);
-  wemo_notify = replace_all(wemo_notify, "{{WEB_PORT}}", TO_STRING(web_port));
-  wemo_notify = replace_all(wemo_notify, "{{SERIAL_NUMBER}}", device_serial);
+  wemo_notify = replaceAll(wemo_notify_template, "{{CACHE_INTERVAL}}", TO_STRING(cache_interval));
+  wemo_notify = replaceAll(wemo_notify, "{{IP_ADDRESS}}", ip_string);
+  wemo_notify = replaceAll(wemo_notify, "{{WEB_PORT}}", TO_STRING(web_port));
+  wemo_notify = replaceAll(wemo_notify, "{{SERIAL_NUMBER}}", device_serial);
 
   udp.write(wemo_notify.c_str());
   udp.endPacket();
@@ -386,19 +380,19 @@ void handleWebRequest() {
     debug("Sending XML setup document");
     // the config XML file and the control calls, then return the appropriate
     // template or control what needs to be controlled.
-    std::string xml = replace_all(setup_xml_template, "{{DEVICE_NAME}}", std::string(config.device_name));
-    xml = replace_all(xml, "{{SERIAL_NUMBER}}", device_serial);
+    std::string xml = replaceAll(setup_xml_template, "{{DEVICE_NAME}}", std::string(config.device_name));
+    xml = replaceAll(xml, "{{SERIAL_NUMBER}}", device_serial);
 
-    response = replace_all(setup_header_template, "{{TIMESTAMP}}", getTimestamp());
-    response = replace_all(response, "{{CONTENT_LENGTH}}", TO_STRING(xml.length()));
-    response = replace_all(response, "{{XML_RESPONSE}}", xml);
+    response = replaceAll(setup_header_template, "{{TIMESTAMP}}", getTimestamp());
+    response = replaceAll(response, "{{CONTENT_LENGTH}}", TO_STRING(xml.length()));
+    response = replaceAll(response, "{{XML_RESPONSE}}", xml);
   } else if (request.find(control_request) != std::string::npos) {
     if (request.find(turn_on_state) != std::string::npos) {
       turnDeviceOn();
     } else {
       turnDeviceOff();
     }
-    response = replace_all(control_response_template, "{{TIMESTAMP}}", getTimestamp());
+    response = replaceAll(control_response_template, "{{TIMESTAMP}}", getTimestamp());
   } else {
     debug("Sending 404 reponse for unknown request");
     response = four_oh_four;
@@ -421,7 +415,6 @@ std::string getDeviceSerial() {
 }
 
 std::string getDeviceUUID() {
-  // if (strcmp(config.device_uuid, DEVICE_UUID) != 0) {
   if (config.device_uuid[0] >= '0' && config.device_uuid[0] <= 'f') {
     // Already have the UUID saved
     return std::string(config.device_uuid);
@@ -434,7 +427,6 @@ std::string getDeviceUUID() {
     uuid::Uuid uuid = uuid::uuid1(host, (uint16_t) mac[0]);
     std::string uuid_string = uuidToString(uuid.integer());
 
-    // uuid_string.toCharArray(config.device_uuid, DEVICE_UUID_SIZE);
     strncpy(config.device_uuid, uuid_string.c_str(), DEVICE_UUID_SIZE);
     saveConfig();
 
@@ -528,23 +520,23 @@ void setup() {
 
 // ------------------------------------------------------------- Main Event Loop
 void loop() {
-  static unsigned long onTimeUpdateTimer = millis();
-  static unsigned long notifyUpdateTimer = millis();
+  static unsigned long time_on_update_timer = millis();
+  static unsigned long notify_update_timer = millis();
 
   handleMulticastRequest();
   handleWebRequest();
   checkButtonPress();
 
-  if (millis() - onTimeUpdateTimer > 1000 * ON_TIME_UPDATE_INTERVAL_SEC) {
+  if (millis() - time_on_update_timer > 1000 * ON_TIME_UPDATE_INTERVAL_SEC) {
     if (device_state == 1) {
       updateOnTimestamp();
     }
-    onTimeUpdateTimer = millis();
+    time_on_update_timer = millis();
   }
 
-  if (millis() - notifyUpdateTimer > 1000 * NOTIFY_UPDATE_INTERVAL_SEC) {
+  if (millis() - notify_update_timer > 1000 * NOTIFY_UPDATE_INTERVAL_SEC) {
     sendMulticastNotify();
-    notifyUpdateTimer = millis();
+    notify_update_timer = millis();
   }
 }
 

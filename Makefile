@@ -4,4 +4,4 @@ firmware.bin:
 	particle compile photon ./ --saveTo firmware.bin
 
 clean:
-	rm firmware.bin
+	rm -f firmware.bin
