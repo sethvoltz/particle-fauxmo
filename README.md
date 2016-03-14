@@ -1,5 +1,5 @@
 Fauxmo for Particle
--------------------
+===================
 
 This is a port of the fine work done by [makermusings][] on the [fauxmo][] over to C++ and the Particle ecosystem. Fair warning, I am not a systems developer by day. My stock and trade consists of Javascript, Ruby, and (when pressed) some Java.
 
@@ -9,7 +9,7 @@ Pull requests are welcome and appreciated.
 [fauxmo]: https://github.com/makermusings/fauxmo
 
 Setting Up
-==========
+----------
 
 I prefer to use multiple terminals so I can watch the serial output of the device while throwing network requests at it. Here are the commands I use:
 
@@ -40,7 +40,7 @@ I prefer to use multiple terminals so I can watch the serial output of the devic
 
 
 Many Thanks
-===========
+-----------
 
 These blog posts and other resources were mighty helpful in getting this working. Many thanks for the time and effort it took for these fine folks to share their work with the world!
 
@@ -50,7 +50,7 @@ These blog posts and other resources were mighty helpful in getting this working
 
 
 TODOs and Wishlist
-==================
+------------------
 
 Pull requests very welcome for any bugs, issues, and features, expecially these upcoming ones.
 
