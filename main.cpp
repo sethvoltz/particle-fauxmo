@@ -35,6 +35,12 @@ int cache_interval = CACHE_INTERVAL;
 // Device control
 const int status_led = D7;
 const int device_out = D0;
+const int control_in = D1;
+
+
+// --------------------------------------------------------- Function Prototypes
+void buttonPressInterrupt ();
+void checkButtonPress ();
 
 
 // ------------------------------------------------------------------- Templates
@@ -120,6 +126,7 @@ IPAddress ip_address;
 std::string device_uuid;
 std::string device_serial;
 int device_state = 0;
+bool button_press_flag = false;
 
 // Socket Servers
 UDP udp;
@@ -483,6 +490,8 @@ void setup() {
 
   pinMode(status_led, OUTPUT);
   pinMode(device_out, OUTPUT);
+  pinMode(control_in, INPUT_PULLDOWN);
+  attachInterrupt(control_in, buttonPressInterrupt, FALLING);
 
   // Generate device values
   device_uuid = getDeviceUUID();
@@ -524,6 +533,7 @@ void loop() {
 
   handleMulticastRequest();
   handleWebRequest();
+  checkButtonPress();
 
   if (millis() - onTimeUpdateTimer > 1000 * ON_TIME_UPDATE_INTERVAL_SEC) {
     if (device_state == 1) {
@@ -535,5 +545,29 @@ void loop() {
   if (millis() - notifyUpdateTimer > 1000 * NOTIFY_UPDATE_INTERVAL_SEC) {
     sendMulticastNotify();
     notifyUpdateTimer = millis();
+  }
+}
+
+
+// ------------------------------------------------------------------ Interrupts
+void buttonPressInterrupt () {
+  static unsigned long last_interrupt_time = 0;
+  unsigned long interrupt_time = millis();
+
+  if (interrupt_time - last_interrupt_time > 50) { // debounce time = 50ms
+    button_press_flag = true;
+  }
+  last_interrupt_time = interrupt_time;
+}
+
+void checkButtonPress () {
+  if (button_press_flag == true) {
+    debug("Button pressed, toggling device state");
+    if (device_state == 0) {
+      turnDeviceOn();
+    } else {
+      turnDeviceOff();
+    }
+    button_press_flag = false;
   }
 }

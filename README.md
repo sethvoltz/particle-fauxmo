@@ -54,7 +54,7 @@ TODOs and Wishlist
 
 Pull requests very welcome for any bugs, issues, and features, expecially these upcoming ones.
 
-- [ ] Enable a physical switch for controlling the device
+- [x] Enable a physical switch for controlling the device
 - [ ] Enable a second physical switch for controlling another network device (call REST endpoint or send UPnP to another FauxMo)
 - [ ] Convert main timing code from `millis()` tracking to FreeRTOS software timers
 - [ ] Extract all UPnP stuff unto a library
