@@ -47,3 +47,15 @@ These blog posts and other resources were mighty helpful in getting this working
 - http://www.makermusings.com/2015/07/13/amazon-echo-and-home-automation
 - https://objectpartners.com/2014/03/25/a-groovy-time-with-upnp-and-wemo
 - https://github.com/smpickett/particle_ssdp_server
+
+
+TODOs and Wishlist
+==================
+
+Pull requests very welcome for any bugs, issues, and features, expecially these upcoming ones.
+
+- [ ] Enable a physical switch for controlling the device
+- [ ] Enable a second physical switch for controlling another network device (call REST endpoint or send UPnP to another FauxMo)
+- [ ] Extract all UPnP stuff unto a library
+- [ ] Extend the UPnP library to allow multiple virtual devices, each with their own digital output and state control
+- [ ] Extend UPnP library to respond to a native device search, and differentiate between WeMo, our own, and `**` requests.
