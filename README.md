@@ -56,6 +56,7 @@ Pull requests very welcome for any bugs, issues, and features, expecially these 
 
 - [ ] Enable a physical switch for controlling the device
 - [ ] Enable a second physical switch for controlling another network device (call REST endpoint or send UPnP to another FauxMo)
+- [ ] Convert main timing code from `millis()` tracking to FreeRTOS software timers
 - [ ] Extract all UPnP stuff unto a library
 - [ ] Extend the UPnP library to allow multiple virtual devices, each with their own digital output and state control
 - [ ] Extend UPnP library to respond to a native device search, and differentiate between WeMo, our own, and `**` requests.
